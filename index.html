@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J-KITCHEN Order Manager</title>
+<style>
+* { box-sizing: border-box; margin:0; padding:0; }
+body { font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f7f7f7; color:#333; padding:10px; }
+h1 { text-align:center; margin-bottom:20px; color:#2c3e50; font-size:2em; }
+form { max-width:600px; margin:0 auto 30px auto; background:#fff; padding:20px; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,0.1); }
+input, select, textarea, button { width:100%; padding:12px; margin:10px 0; border:1px solid #ccc; border-radius:6px; font-size:1em; }
+button { background:#2980b9; color:#fff; border:none; cursor:pointer; transition:0.3s; }
+button:hover { background:#3498db; }
+table { width:100%; max-width:700px; margin:0 auto; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 4px 8px rgba(0,0,0,0.1); }
+th, td { padding:12px; border-bottom:1px solid #ddd; text-align:left; font-size:0.95em; }
+th { background:#2980b9; color:#fff; text-align:center; }
+td:last-child { text-align:center; }
+tfoot td { font-weight:bold; font-size:1em; }
+@media(max-width:600px){ th, td { font-size:0.85em; padding:8px; } form{ padding:15px; } }
+button.print-btn { background:#27ae60; padding:6px 12px; border-radius:5px; }
+button.print-btn:hover { background:#2ecc71; }
+button.delete-btn { background:#e74c3c; padding:6px 12px; border-radius:5px; }
+button.delete-btn:hover { background:#c0392b; }
+</style>
+</head>
+<body>
+
+<h1>J-KITCHEN Order Manager</h1>
+
+<form id="orderForm">
+    <select id="savedCustomers">
+        <option value="">-- Select Existing Customer --</option>
+    </select>
+    <input type="text" id="name" placeholder="Customer Name" required>
+    <input type="text" id="address" placeholder="Address" required>
+    <input type="text" id="contact" placeholder="Contact Number" required>
+    <textarea id="food" placeholder="Ordered Food Items" required></textarea>
+    <input type="number" id="price" placeholder="Price of this order (₹)" required>
+    <button type="submit">Add Order</button>
+</form>
+
+<table id="ordersTable">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Address</th>
+            <th>Contact</th>
+            <th>Food</th>
+            <th>Price (₹)</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Orders go here -->
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="4" style="text-align:right">Total Price:</td>
+            <td colspan="2" id="totalPrice">₹0</td>
+        </tr>
+    </tfoot>
+</table>
+
+<script>
+const orderForm = document.getElementById('orderForm');
+const ordersTableBody = document.getElementById('ordersTable').querySelector('tbody');
+const totalPriceDisplay = document.getElementById('totalPrice');
+const savedCustomersSelect = document.getElementById('savedCustomers');
+
+let orders = JSON.parse(localStorage.getItem('jkitchenOrders')) || [];
+let customers = JSON.parse(localStorage.getItem('jkitchenCustomers')) || [];
+let totalPrice = 0;
+
+// Function to render orders
+function renderOrders(){
+    ordersTableBody.innerHTML = '';
+    totalPrice = 0;
+    orders.forEach((order,index)=>{
+        totalPrice += order.price;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${order.name}</td>
+            <td>${order.address}</td>
+            <td>${order.contact}</td>
+            <td>${order.food}</td>
+            <td>₹${order.price.toFixed(2)}</td>
+            <td>
+                <button class="print-btn">Print</button>
+                <button class="delete-btn">Delete</button>
+            </td>
+        `;
+        tr.querySelector('.print-btn').addEventListener('click',()=>{
+            const printWindow = window.open('','','height=500,width=400');
+            printWindow.document.write('<h2>J-KITCHEN Order</h2>');
+            printWindow.document.write(`<p><strong>Name:</strong> ${order.name}</p>`);
+            printWindow.document.write(`<p><strong>Address:</strong> ${order.address}</p>`);
+            printWindow.document.write(`<p><strong>Contact:</strong> ${order.contact}</p>`);
+            printWindow.document.write(`<p><strong>Food:</strong> ${order.food}</p>`);
+            printWindow.document.write(`<p><strong>Price:</strong> ₹${order.price.toFixed(2)}</p>`);
+            printWindow.document.write('<hr>');
+            printWindow.document.close();
+            printWindow.print();
+        });
+        tr.querySelector('.delete-btn').addEventListener('click',()=>{
+            orders.splice(index,1);
+            localStorage.setItem('jkitchenOrders',JSON.stringify(orders));
+            renderOrders();
+        });
+        ordersTableBody.appendChild(tr);
+    });
+    totalPriceDisplay.textContent = `₹${totalPrice.toFixed(2)}`;
+}
+
+// Function to render saved customers
+function renderCustomers(){
+    savedCustomersSelect.innerHTML = `<option value="">-- Select Existing Customer --</option>`;
+    customers.forEach((c,i)=>{
+        savedCustomersSelect.innerHTML += `<option value="${i}">${c.name} - ${c.contact}</option>`;
+    });
+}
+
+// On selecting a saved customer
+savedCustomersSelect.addEventListener('change', ()=>{
+    const idx = savedCustomersSelect.value;
+    if(idx!==''){
+        const c = customers[idx];
+        document.getElementById('name').value = c.name;
+        document.getElementById('address').value = c.address;
+        document.getElementById('contact').value = c.contact;
+    }else{
+        document.getElementById('name').value = '';
+        document.getElementById('address').value = '';
+        document.getElementById('contact').value = '';
+    }
+});
+
+// Initial render
+renderOrders();
+renderCustomers();
+
+// Add new order
+orderForm.addEventListener('submit',function(e){
+    e.preventDefault();
+    const name = document.getElementById('name').value.trim();
+    const address = document.getElementById('address').value.trim();
+    const contact = document.getElementById('contact').value.trim();
+    const food = document.getElementById('food').value.trim();
+    const price = parseFloat(document.getElementById('price').value);
+
+    if(!name || !address || !contact || !food || isNaN(price)) return;
+
+    // Save customer if not already saved
+    if(!customers.some(c=>c.name===name && c.contact===contact)){
+        customers.push({name,address,contact});
+        localStorage.setItem('jkitchenCustomers',JSON.stringify(customers));
+        renderCustomers();
+    }
+
+    orders.push({name,address,contact,food,price});
+    localStorage.setItem('jkitchenOrders',JSON.stringify(orders));
+    renderOrders();
+    orderForm.reset();
+});
+</script>
+
+</body>
+</html>
